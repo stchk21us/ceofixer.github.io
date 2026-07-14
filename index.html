@@ -106,7 +106,8 @@ body::before{
 @keyframes sl-sweep{from{transform:rotate(-90deg)}to{transform:rotate(270deg)}}
 #slate .sl-top{font-size:11px;letter-spacing:.35em;text-transform:uppercase;opacity:.55}
 #slate .sl-tc{font-size:clamp(34px,7vw,72px);letter-spacing:.06em;font-weight:500}
-#slate .sl-flick{width:min(150px,38vw);aspect-ratio:16/9;overflow:hidden;border:1px solid rgba(233,229,217,.25);background:#000;opacity:0;transition:opacity .35s ease}
+#slate .sl-flick{width:min(150px,38vw);aspect-ratio:16/9;overflow:hidden;border:1px solid rgba(233,229,217,.25);background:#000;opacity:0;transition:opacity .35s ease;cursor:pointer}
+#slate .sl-flick.paused{border-color:rgba(233,229,217,.65)}
 #slate .sl-flick.on{opacity:1}
 #slate .sl-flick img{width:100%;height:100%;object-fit:cover;display:block}
 #slate .sl-bar{width:min(420px,70vw);height:1px;background:rgba(233,229,217,.2);position:relative;overflow:hidden}
@@ -1186,18 +1187,25 @@ function preNext(){
 }
 for (let k = 0; k < 6; k++) preNext();
 
-// flicker window: random frames swap fast while the clock runs
+// flicker window: random frames swap fast while the clock runs; click to freeze/resume
 const flickEl = document.getElementById('slFlick');
-let flickInt = null;
+let flickInt = null, flickPaused = false;
+if (flickEl){
+  flickEl.parentElement.addEventListener('click', e=>{
+    e.stopPropagation();
+    flickPaused = !flickPaused;
+    flickEl.parentElement.classList.toggle('paused', flickPaused);
+  });
+}
 if (flickEl && !matchMedia('(prefers-reduced-motion: reduce)').matches){
   flickInt = setInterval(()=>{
-    if (!preReady.length) return;
+    if (flickPaused || !preReady.length) return;
     flickEl.src = preReady[Math.floor(Math.random() * preReady.length)];
     flickEl.parentElement.classList.add('on');
   }, 90);
 }
 
-// hold the slate until the cache is warm (min 2.6s after load, hard cap 6s)
+// hold the slate briefly (min 1.4s after load, hard cap 3.5s); cache keeps warming in the background
 function finishSlate(){
   clearInterval(tcInt);
   if (flickInt) clearInterval(flickInt);
@@ -1207,10 +1215,10 @@ function finishSlate(){
   initTW();
 }
 window.addEventListener('load',()=>{
-  const t0 = performance.now(), MIN = 2600, MAX = 6000;
+  const t0 = performance.now(), MIN = 1400, MAX = 3500;
   (function waitPre(){
     const el = performance.now() - t0;
-    if (el >= MIN && (preDone >= preList.length || el >= MAX)) finishSlate();
+    if (el >= MIN && (preDone >= preList.length * 0.5 || el >= MAX)) finishSlate();
     else setTimeout(waitPre, 150);
   })();
 });
